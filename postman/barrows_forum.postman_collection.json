@@ -1,0 +1,258 @@
+{
+	"info": {
+		"_postman_id": "8a3d4f5e-1234-5678-90ab-cdef12345678",
+		"name": "Barrows Connected Stores Forum (v1.0)",
+		"description": "# Barrows Connected Stores API\n\nOfficial API documentation for the Barrows forum application. This collection serves as the technical specification for the full-stack system.\n\n## Getting Started\n1.  **Environment:** Ensure the `base_url` variable is set to `http://127.0.0.1:8000`.\n2.  **Authentication:** After a successful Login, the `token` variable will be automatically updated via the test script.\n3.  **Roles:** The system supports Regular Users and Moderators.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"description": "Endpoints for user authentication and session management.",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set(\"token\", jsonData.token);",
+									"    console.log(\"Auth Token saved to collection variables.\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"jdoe\",\n    \"password\": \"password123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"login",
+								""
+							]
+						},
+						"description": "### User Login\nExchanges user credentials for a DRF Token. This token is required for all authenticated endpoints."
+					},
+					"response": [
+						{
+							"name": "Success (Moderator)",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"jdoe\",\n    \"password\": \"password123\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/login/"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n    \"token\": \"9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b\",\n    \"user\": {\n        \"id\": 1,\n        \"username\": \"jdoe\",\n        \"role\": \"moderator\"\n    }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "2. Forum Feed",
+			"description": "Endpoints for retrieving and creating forum posts.",
+			"item": [
+				{
+					"name": "List All Posts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/posts/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								""
+							]
+						},
+						"description": "### Get All Posts\nFetches the global feed of forum posts. This endpoint is accessible to anonymous users."
+					},
+					"response": [
+						{
+							"name": "Feed Example",
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "[\n    {\n        \"id\": 101,\n        \"author\": \"jdoe\",\n        \"content\": \"Welcome to Barrows Connected Stores! Checking out our new AI search.\",\n        \"created_at\": \"2026-02-20T10:00:00Z\",\n        \"like_count\": 5,\n        \"comment_count\": 2,\n        \"is_misleading\": false\n    },\n    {\n        \"id\": 102,\n        \"author\": \"store_manager\",\n        \"content\": \"Sale on connected electronics this weekend!\",\n        \"created_at\": \"2026-02-20T11:30:00Z\",\n        \"like_count\": 12,\n        \"comment_count\": 0,\n        \"is_misleading\": false\n    }\n]"
+						}
+					]
+				},
+				{
+					"name": "Create New Post",
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "Token {{token}}",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "Authorization",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"Hello Barrows Connected Stores! I love the new AI search feature.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/posts/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								""
+							]
+						},
+						"description": "### Create a Post\nRequires authentication. Submission triggers an AI embedding task to support semantic search functionality."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Engagement",
+			"description": "Endpoints for user engagement including likes and comments.",
+			"item": [
+				{
+					"name": "Like a Post",
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "Token {{token}}",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "Authorization",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/posts/101/like/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"posts",
+								"101",
+								"like",
+								""
+							]
+						},
+						"description": "### Like a Post\nBusiness Logic:\n- One like per user per post.\n- Users may not like their own posts."
+					},
+					"response": [
+						{
+							"name": "Error: Own Post",
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n    \"error\": \"You cannot like your own post.\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "4. AI Semantic Search",
+			"description": "Advanced search using vector similarity.",
+			"item": [
+				{
+					"name": "Semantic Search",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/search/?q=how do I find a store?",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"search",
+								""
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "how do I find a store?"
+								}
+							]
+						},
+						"description": "### Semantic Search\nQueries the database using cosine similarity on AI vector fields. Returns relevant results based on semantic intent."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "replace_after_login",
+			"type": "string"
+		}
+	]
+}
