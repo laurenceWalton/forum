@@ -23,8 +23,8 @@ class Post(models.Model):
     is_misleading = models.BooleanField(default=False)
     
     # AI Vector field (Option C: Semantic Search)
-    # Using 768 dimensions for compatibility with Gemini text-embedding-004
-    embedding = VectorField(dimensions=768, null=True, blank=True)
+    # Using 3072 dimensions for compatibility with gemini-embedding-001
+    embedding = VectorField(dimensions=3072, null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

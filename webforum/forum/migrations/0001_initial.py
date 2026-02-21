@@ -4,6 +4,7 @@ import django.contrib.auth.models
 import django.contrib.auth.validators
 import django.utils.timezone
 from django.db import migrations, models
+from pgvector.django import VectorExtension
 
 
 class Migration(migrations.Migration):
@@ -15,6 +16,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        VectorExtension(),
         migrations.CreateModel(
             name='User',
             fields=[

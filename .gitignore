@@ -45,3 +45,9 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.pylintrc
+*.swp
+*.swo
