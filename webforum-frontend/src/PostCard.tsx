@@ -64,7 +64,23 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <span style={{ fontWeight: 'bold', color: 'var(--accent-blue)' }}>@{localPost.author_username}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontWeight: 'bold', color: 'var(--accent-blue)' }}>@{localPost.author_username}</span>
+          {localPost.category && (
+            <span style={{ 
+              fontSize: '0.65rem', 
+              backgroundColor: 'rgba(0, 85, 255, 0.1)', 
+              color: 'var(--accent-blue)', 
+              padding: '2px 8px', 
+              borderRadius: '10px',
+              border: '1px solid rgba(0, 85, 255, 0.2)',
+              fontWeight: 'bold',
+              textTransform: 'uppercase'
+            }}>
+              {localPost.category}
+            </span>
+          )}
+        </div>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
           {new Date(localPost.created_at).toLocaleDateString()}
         </span>

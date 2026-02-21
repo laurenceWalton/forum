@@ -7,6 +7,8 @@ import api from './api';
 import type { Post, User } from './types';
 import { Search, X } from 'lucide-react';
 
+const CATEGORIES = ["All", "ConnectOS", "Hardware", "News", "Q&A"];
+
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [posts, setPosts] = useState<Post[]>([]);
@@ -18,6 +20,7 @@ function App() {
   
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All");
   
   // Search States
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,17 +32,17 @@ function App() {
       if (searchQuery.trim().length > 2) {
         handleDebouncedSearch();
       } else if (searchQuery.trim().length === 0) {
-        // Cancel any pending search to prevent it from overwriting the feed
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         fetchInitialData();
       }
     }
-  }, [token, searchQuery]);
+  }, [token, searchQuery, selectedCategory]);
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const postsRes = await api.get('/posts/');
+      const url = selectedCategory === "All" ? '/posts/' : `/posts/?category=${encodeURIComponent(selectedCategory)}`;
+      const postsRes = await api.get(url);
       setPosts(postsRes.data);
     } catch (err) {
       console.error('Failed to fetch data');
@@ -50,18 +53,14 @@ function App() {
   };
 
   const handleDebouncedSearch = () => {
-    // 1. Clear existing timer
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    
-    // 2. Immediate UI feedback
     setIsSearching(true);
     setLoading(true);
-    setPosts([]); // Clear posts immediately as requested
+    setPosts([]);
 
-    // 3. Set new timer for 600ms
     debounceTimer.current = setTimeout(async () => {
       try {
-        const response = await api.get(`/posts/search/?q=${encodeURIComponent(searchQuery)}`);
+        const response = await api.get(`/posts/search/?q=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(selectedCategory)}`);
         setPosts(response.data);
       } catch (err) {
         console.error('Search failed');
@@ -94,7 +93,7 @@ function App() {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        padding: '1.5rem 0',
+        padding: '1rem 0',
         borderBottom: 'var(--card-border)',
         marginBottom: '2rem'
       }}>
@@ -136,10 +135,8 @@ function App() {
       </header>
 
       <main>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ margin: 0 }}>
-            {searchQuery ? `Search results for "${searchQuery}"` : 'Community Forum'}
-          </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ margin: 0 }}>Community Forum</h2>
           <button 
             onClick={() => setShowCreate(!showCreate)}
             style={{ fontSize: '0.9rem', backgroundColor: showCreate ? 'transparent' : 'var(--accent-blue)', border: showCreate ? '1px solid #333' : 'none' }}
@@ -148,11 +145,31 @@ function App() {
           </button>
         </div>
 
+        {/* Category Filters */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              style={{
+                fontSize: '0.75rem',
+                padding: '4px 12px',
+                backgroundColor: selectedCategory === cat ? 'var(--accent-blue)' : 'transparent',
+                border: `1px solid ${selectedCategory === cat ? 'var(--accent-blue)' : '#333'}`,
+                color: selectedCategory === cat ? 'white' : 'var(--text-secondary)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         {showCreate && <CreatePost onPostCreated={handlePostCreated} />}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '5rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-            {isSearching ? 'Analyzing Barrows semantic network...' : 'Initialising Network...'}
+            {isSearching ? 'Analyzing Barrows semantic network...' : 'Updating feed...'}
           </div>
         ) : (
           <div className="post-list">
@@ -166,7 +183,7 @@ function App() {
               ))
             ) : (
               <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--card-radius)' }}>
-                {searchQuery ? 'No semantically related posts found.' : 'No active discussions found.'}
+                {searchQuery ? 'No semantically related posts found.' : 'No active discussions found in this category.'}
               </div>
             )}
           </div>

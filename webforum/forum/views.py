@@ -47,31 +47,40 @@ class PostViewSet(viewsets.ModelViewSet):
         # Automatically set the author to the logged-in user
         serializer.save(author=self.request.user)
 
+    def get_queryset(self):
+        queryset = Post.objects.all()
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category=category)
+        return queryset
+
     @decorators.action(detail=False, methods=['get'])
     def search(self, request):
         """
-        AI Semantic Search: Finds posts based on meaning using pgvector.
+        AI Semantic Search with optional category filtering.
         """
         query_text = request.query_params.get('q')
+        category = request.query_params.get('category')
+        
         if not query_text:
             return Response({"error": "No search query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 1. Generate embedding for the search query
+            # 1. Generate embedding
             api_key = os.getenv("GOOGLE_API_KEY")
             client = genai.Client(api_key=api_key)
-            
-            response = client.models.embed_content(
-                model="gemini-embedding-001",
-                contents=query_text
-            )
+            response = client.models.embed_content(model="gemini-embedding-001", contents=query_text)
             query_vector = response.embeddings[0].values
 
-            # 2. Query PostgreSQL using the distance operator (<->)
-            # We exclude posts that don't have embeddings yet
-            results = Post.objects.exclude(embedding__isnull=True).order_by(
-                L2Distance('embedding', query_vector)
-            )[:1] # Return top 5 most relevant
+            # 2. Base Query
+            queryset = Post.objects.exclude(embedding__isnull=True)
+            
+            # 3. Apply Category Filter if provided
+            if category and category != "All":
+                queryset = queryset.filter(category=category)
+
+            # 4. Order by Distance
+            results = queryset.order_by(L2Distance('embedding', query_vector))[:2]
 
             serializer = self.get_serializer(results, many=True)
             return Response(serializer.data)
