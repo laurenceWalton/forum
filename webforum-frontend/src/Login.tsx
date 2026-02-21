@@ -15,8 +15,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setError('');
     try {
       const response = await api.post('/login/', { username, password });
-      const { token } = response.data;
+      const { token, ...userData } = response.data;
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
       onLoginSuccess(token);
     } catch (err) {
       setError('Invalid credentials.');

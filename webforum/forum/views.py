@@ -12,6 +12,25 @@ class IsModeratorOrReadOnly(permissions.BasePermission):
             return True
         return request.user.is_authenticated
 
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token
+
+class CustomAuthToken(ObtainAuthToken):
+    """
+    Returns Token plus User data for frontend permissions.
+    """
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({
+            'token': token.key,
+            'user_id': user.pk,
+            'username': user.username,
+            'is_moderator': user.is_moderator
+        })
+
 class PostViewSet(viewsets.ModelViewSet):
     """
     ViewSet for viewing and creating forum posts.
