@@ -31,6 +31,10 @@ class CustomAuthToken(ObtainAuthToken):
             'is_moderator': user.is_moderator
         })
 
+from pgvector.django import L2Distance
+from google import genai
+import os
+
 class PostViewSet(viewsets.ModelViewSet):
     """
     ViewSet for viewing and creating forum posts.
@@ -42,6 +46,38 @@ class PostViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Automatically set the author to the logged-in user
         serializer.save(author=self.request.user)
+
+    @decorators.action(detail=False, methods=['get'])
+    def search(self, request):
+        """
+        AI Semantic Search: Finds posts based on meaning using pgvector.
+        """
+        query_text = request.query_params.get('q')
+        if not query_text:
+            return Response({"error": "No search query provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # 1. Generate embedding for the search query
+            api_key = os.getenv("GOOGLE_API_KEY")
+            client = genai.Client(api_key=api_key)
+            
+            response = client.models.embed_content(
+                model="gemini-embedding-001",
+                contents=query_text
+            )
+            query_vector = response.embeddings[0].values
+
+            # 2. Query PostgreSQL using the distance operator (<->)
+            # We exclude posts that don't have embeddings yet
+            results = Post.objects.exclude(embedding__isnull=True).order_by(
+                L2Distance('embedding', query_vector)
+            )[:1] # Return top 5 most relevant
+
+            serializer = self.get_serializer(results, many=True)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response({"error": f"Search failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @decorators.action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
     def flag(self, request, pk=None):
