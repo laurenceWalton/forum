@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import api from './api';
+import type { User } from './types';
 
 interface LoginProps {
-  onLoginSuccess: (token: string) => void;
+  onLoginSuccess: (token: string, user: User) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
@@ -18,7 +19,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       const { token, ...userData } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
-      onLoginSuccess(token);
+      onLoginSuccess(token, userData as User);
     } catch (err) {
       setError('Invalid credentials.');
     }

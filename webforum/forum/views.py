@@ -1,19 +1,13 @@
+import os
 from rest_framework import viewsets, permissions, status, decorators
 from rest_framework.response import Response
-from .models import Post, Comment, Like
-from .serializers import PostSerializer, CommentSerializer, UserSerializer
-
-class IsModeratorOrReadOnly(permissions.BasePermission):
-    """
-    Custom permission: Anyone can read, but only Moderators can edit 'is_misleading'.
-    """
-    def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        return request.user.is_authenticated
-
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
+from pgvector.django import L2Distance
+from google import genai
+
+from .models import Post, Comment, Like
+from .serializers import PostSerializer, CommentSerializer
 
 class CustomAuthToken(ObtainAuthToken):
     """
@@ -31,10 +25,6 @@ class CustomAuthToken(ObtainAuthToken):
             'is_moderator': user.is_moderator
         })
 
-from pgvector.django import L2Distance
-from google import genai
-import os
-
 class PostViewSet(viewsets.ModelViewSet):
     """
     ViewSet for viewing and creating forum posts.
@@ -43,16 +33,21 @@ class PostViewSet(viewsets.ModelViewSet):
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def perform_create(self, serializer):
-        # Automatically set the author to the logged-in user
-        serializer.save(author=self.request.user)
-
     def get_queryset(self):
+        """
+        Supports optional filtering by category via URL params.
+        """
         queryset = Post.objects.all()
         category = self.request.query_params.get('category')
         if category:
             queryset = queryset.filter(category=category)
         return queryset
+
+    def perform_create(self, serializer):
+        """
+        Automatically set the author to the logged-in user.
+        """
+        serializer.save(author=self.request.user)
 
     @decorators.action(detail=False, methods=['get'])
     def search(self, request):
@@ -66,20 +61,16 @@ class PostViewSet(viewsets.ModelViewSet):
             return Response({"error": "No search query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 1. Generate embedding
             api_key = os.getenv("GOOGLE_API_KEY")
             client = genai.Client(api_key=api_key)
             response = client.models.embed_content(model="gemini-embedding-001", contents=query_text)
             query_vector = response.embeddings[0].values
 
-            # 2. Base Query
             queryset = Post.objects.exclude(embedding__isnull=True)
             
-            # 3. Apply Category Filter if provided
             if category and category != "All":
                 queryset = queryset.filter(category=category)
 
-            # 4. Order by Distance
             results = queryset.order_by(L2Distance('embedding', query_vector))[:2]
 
             serializer = self.get_serializer(results, many=True)
@@ -91,7 +82,7 @@ class PostViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
     def flag(self, request, pk=None):
         """
-        Custom action: Only moderators can flag a post as misleading.
+        Only moderators can flag a post as misleading.
         """
         if not request.user.is_moderator:
             return Response(
@@ -107,18 +98,16 @@ class PostViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like(self, request, pk=None):
         """
-        Custom action: Handle the 'Like' logic.
+        Handles 'Like' toggle logic. Users cannot like their own posts.
         """
         post = self.get_object()
         
-        # Rule: Cannot like your own post
         if post.author == request.user:
             return Response(
                 {"error": "You cannot like your own post."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Rule: One like per user (Toggle logic)
         like_exists = Like.objects.filter(user=request.user, post=post).exists()
         if like_exists:
             Like.objects.filter(user=request.user, post=post).delete()
@@ -136,7 +125,9 @@ class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        # Allow filtering comments by post ID: /api/comments/?post=1
+        """
+        Allows filtering comments by post ID.
+        """
         post_id = self.request.query_params.get('post')
         if post_id:
             return self.queryset.filter(post_id=post_id)

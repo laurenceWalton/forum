@@ -71,8 +71,26 @@ function App() {
   };
 
   const handlePostCreated = (newPost: Post) => {
+    // Immediately add the raw post to the UI
     setPosts([newPost, ...posts]);
     setShowCreate(false);
+
+    // Wait 5 seconds for the AI thread to finish
+    setTimeout(async () => {
+      try {
+        const response = await api.get(`/posts/${newPost.id}/`);
+        const updatedPost = response.data;
+        
+        // Update the posts list with the fresh data from the server
+        setPosts(prevPosts => {
+          const newPosts = prevPosts.map(p => p.id === updatedPost.id ? updatedPost : p);
+          return [...newPosts]; // Ensure new array reference
+        });
+        console.log(`Background sync complete for post ${newPost.id}`);
+      } catch (err) {
+        console.error("Failed to sync new post data", err);
+      }
+    }, 5000);
   };
 
   const logout = () => {
@@ -84,7 +102,10 @@ function App() {
   };
 
   if (!token) {
-    return <Login onLoginSuccess={(newToken) => setToken(newToken)} />;
+    return <Login onLoginSuccess={(newToken, newUser) => {
+      setToken(newToken);
+      setUser(newUser);
+    }} />;
   }
 
   return (
@@ -145,7 +166,6 @@ function App() {
           </button>
         </div>
 
-        {/* Category Filters */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
           {CATEGORIES.map(cat => (
             <button
